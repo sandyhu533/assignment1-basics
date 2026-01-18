@@ -1,0 +1,49 @@
+(a) What Unicode character does chr(0) return?
+Deliverable: '\x00'
+
+(b) How does this character’s string representation (__repr__()) differ from its printed representa-
+tion?
+Deliverable:the character's printed representation is empty, which it's string representation isn't
+
+(c) What happens when this character occurs in text? It may be helpful to play around with the
+following in your Python interpreter and see if it matches your expectations:
+it is non printable.
+
+---------
+
+(a) What are some reasons to prefer training our tokenizer on UTF-8 encoded bytes, rather than
+UTF-16 or UTF-32? It may be helpful to compare the output of these encodings for various
+input strings.
+Deliverable: UTF-8 ranges from 0-256, which UTF-16/32 is much more larger (0-65536 and 0-4294967296), leading to
+1. manageble dimention - control traning cost
+2. less rare/sparse token - prevent overfitting
+
+(b) Consider the following (incorrect) function, which is intended to decode a UTF-8 byte string into
+a Unicode string. Why is this function incorrect? Provide an example of an input byte string
+that yields incorrect results.
+def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
+return "".join([bytes([b]).decode("utf-8") for b in bytestring])
+>>> decode_utf8_bytes_to_str_wrong("hello".encode("utf-8"))
+'hello'
+Deliverable: can only deal with one character to one int scenarios, cannot deal with complex characters like '哈哈哈'
+
+
+(c) Give a two byte sequence that does not decode to any Unicode character(s).
+A two-byte sequence that will fail to decode is b'\xff\xff'.
+Explanation: In the UTF-8 encoding scheme, the byte 0xff (255) is explicitly disallowed and never used, so any sequence containing it is invalid.
+
+----------
+
+(a) Train a byte-level BPE tokenizer on the TinyStories dataset, using a maximum vocabulary size
+of 10,000. Make sure to add the TinyStories <|endoftext|> special token to the vocabulary.
+Serialize the resulting vocabulary and merges to disk for further inspection. How many hours
+and memory did training take? What is the longest token in the vocabulary? Does it make sense?
+Resource requirements: ≤30 minutes (no GPUs), ≤30GB RAM
+Hint You should be able to get under 2 minutes for BPE training using multiprocessing during
+pretokenization and the following two facts:
+(a) The <|endoftext|> token delimits documents in the data files.
+(b) The <|endoftext|> token is handled as a special case before the BPE merges are applied.
+Deliverable: A one-to-two sentence response.
+
+(b) Profile your code. What part of the tokenizer training process takes the most time?
+Deliverable: A one-to-two sentence response.

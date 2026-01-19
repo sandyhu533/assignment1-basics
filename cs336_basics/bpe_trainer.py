@@ -4,8 +4,8 @@ from typing import BinaryIO
 from datetime import datetime
 from multiprocessing import Process, Queue
 import pickle
-from .linkedlist import Node
-# from cs336_basics.linkedlist import Node
+from cs336_basics.linkedlist import Node
+import argparse
 
 
 def find_chunk_boundaries(
@@ -246,12 +246,48 @@ def save_tokenizer_pickle(vocab, merges, filename):
         # protocol=5 是目前最高性能的版本
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-if __name__ == '__main__':
+def main():
+    parser = argparse.ArgumentParser(description="Train a BPE Tokenizer on a text dataset.")
+    
+    parser.add_argument(
+        "--dataset", 
+        type=str, 
+        default="TinyStoriesV2-GPT4-train.txt",
+        help="Path to the training text file"
+    )
+    parser.add_argument(
+        "--vocab_size", 
+        type=int, 
+        default=10000,
+        help="Target vocabulary size"
+    )
+    parser.add_argument(
+        "--output_dir", 
+        type=str, 
+        default="data/_model/",
+        help="Directory to save the resulting tokenizer files"
+    )
+    
+    args = parser.parse_args()
+
     bpe = BPETrainer()
-    dataset = "TinyStoriesV2-GPT4-train.txt"
-    # dataset = "tests/fixtures/tinystories_sample_5M.txt"
-    # dataset = "tests/fixtures/tinystories_sample.txt"
-    # dataset = "owt_train.txt"
-    token2byte, merges = bpe.train(dataset, vocab_size=10000, special_tokens=["<|endoftext|>"])
-    save_tokenizer_json(token2byte, merges, dataset+".result.json")
-    save_tokenizer_pickle(token2byte, merges, dataset+".result.pkl")
+    
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    base_name = os.path.basename(args.dataset)
+    save_path = os.path.join(args.output_dir, f"{base_name}.result")
+    
+    print(f"Training on {args.dataset} with vocab size {args.vocab_size}...")
+    
+    token2byte, merges = bpe.train(
+        args.dataset, 
+        vocab_size=args.vocab_size, 
+        special_tokens=["<|endoftext|>"]
+    )
+    
+    save_tokenizer_json(token2byte, merges, save_path+".json")
+    save_tokenizer_pickle(token2byte, merges, save_path+".pkl")
+    print(f"Successfully saved to {save_path}.json/.pkl")
+
+if __name__ == '__main__':
+    main()

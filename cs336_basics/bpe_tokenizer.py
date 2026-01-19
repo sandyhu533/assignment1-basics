@@ -7,6 +7,7 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 import os
+from functools import lru_cache
 
 def load_tokenizer_pickle(filename):
     with open(filename, "rb") as f:
@@ -29,6 +30,7 @@ class BPETokenizer:
         if special_tokens:
             self.add_special_tokens(special_tokens)
         self.special_tokens = special_tokens or []
+        self._cached_bpe_merges = lru_cache(maxsize=32000)(self._bpe_merges)
     
     @classmethod
     def from_files(cls, file_path, special_tokens=None):
@@ -74,7 +76,6 @@ class BPETokenizer:
         
         return tokens
         
-        
     def encode(self, text):
         token_ids = []
         pretokens = []
@@ -101,14 +102,13 @@ class BPETokenizer:
         
         # print(f'pretokens: {pretokens}')
         
-        # Creat Linkedlist
         for token_str in pretokens:
             if token_str in self.special_tokens:
                 tid = self.byte2token.get(token_str.encode('utf-8'))
                 if tid is not None: token_ids.append(tid)
                 continue
             
-            token_bytes = self._bpe_merges(token_str)
+            token_bytes = self._cached_bpe_merges(token_str)
             # Convert to token_ids
             for token_byte in token_bytes:
                 if token_byte in self.byte2token:
@@ -230,12 +230,17 @@ def serialize_dataset(tokenizer, input_file, output_file):
     
 def main():
     parser = argparse.ArgumentParser(description="Serialize text dataset to NumPy uint16 array.")
+    parser.add_argument("--test", type=int, default=0, help="Run test")
+            
+    args = parser.parse_args()
+    if args.test == 1:
+        return test()
+    
     parser.add_argument("--tokenizer_model", type=str, required=True, help="Path to .result.pkl or .json tokenizer file")
     parser.add_argument("--input_file", type=str, required=True, help="Path to raw .txt file")
     parser.add_argument("--output_file", type=str, required=True, help="Path to save .npy file")
-    
     args = parser.parse_args()
-
+    
     # 1. 加载 Tokenizer
     print(f"Loading tokenizer from {args.tokenizer_model}...")
     tokenizer = BPETokenizer.from_files(args.tokenizer_model)
@@ -273,5 +278,4 @@ def main():
     print(f"File size: {os.path.getsize(args.output_file) / (1024**2):.2f} MB")
 
 if __name__ == '__main__':
-    # test()
     main()

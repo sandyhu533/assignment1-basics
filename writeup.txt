@@ -38,6 +38,8 @@ Explanation: In the UTF-8 encoding scheme, the byte 0xff (255) is explicitly dis
 of 10,000. Make sure to add the TinyStories <|endoftext|> special token to the vocabulary.
 Serialize the resulting vocabulary and merges to disk for further inspection. How many hours
 and memory did training take? What is the longest token in the vocabulary? Does it make sense?
+it task 2 minutes, the longest token is b' accomplishment', which is very make sense
+
 Resource requirements: ≤30 minutes (no GPUs), ≤30GB RAM
 Hint You should be able to get under 2 minutes for BPE training using multiprocessing during
 pretokenization and the following two facts:
@@ -46,4 +48,17 @@ pretokenization and the following two facts:
 Deliverable: A one-to-two sentence response.
 
 (b) Profile your code. What part of the tokenizer training process takes the most time?
+the process of updating and merging tokens takes the most time
+
+Deliverable: A one-to-two sentence response.
+
+
+---------
+
+(a) Train a byte-level BPE tokenizer on the OpenWebText dataset, using a maximum vocabulary
+size of 32,000. Serialize the resulting vocabulary and merges to disk for further inspection. What
+is the longest token in the vocabulary? Does it make sense?
+Resource requirements: ≤12 hours (no GPUs), ≤100GB RAM
+Deliverable: A one-to-two sentence response.
+(b) Compare and contrast the tokenizer that you get training on TinyStories versus OpenWebText.
 Deliverable: A one-to-two sentence response.

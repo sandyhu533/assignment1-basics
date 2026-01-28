@@ -164,4 +164,4 @@ cython_debug/
 
 /data/*
 !/data/_model
-tests/
+tests/fixtures

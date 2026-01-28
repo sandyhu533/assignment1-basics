@@ -1,0 +1,9 @@
+dataset: tinystories
+vocab_size: 10000
+
+paths:
+  raw_input: data/tinystories/raw/train.txt
+  tokenizer_output_dir: data/tinystories/tokenizer
+
+# Download URL (used by run.sh when raw file missing)
+download_url: https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-train.txt

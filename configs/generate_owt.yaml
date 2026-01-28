@@ -1,0 +1,23 @@
+dataset: owt
+run_name: owt_medium
+
+paths:
+  checkpoint: checkpoints/owt_medium/checkpoint.pt
+  tokenizer: data/owt/tokenizer/model.pkl
+
+model:
+  vocab_size: 32000
+  context_length: 128
+  d_model: 512
+  num_layers: 6
+  num_heads: 8
+  d_ff: null
+  rope_theta: 10000.0
+
+generation:
+  prompt: "Once upon a time"
+  max_tokens: 100
+  temperature: 0.8
+  top_k: null
+
+device: cpu

@@ -1,14 +1,17 @@
-# TinyStories training config (small, fast)
-input_file: data/_serialized/tinystories_train.npy
-checkpoint_dir: ckpt
-load_checkpoint: 0
+dataset: tinystories
+run_name: tinystories_small
 
+paths:
+  input_file: data/tinystories/tokenized/train.npy
+  checkpoint_dir: checkpoints/tinystories_small/checkpoint.pt
+
+load_checkpoint: 0
 batch_size: 32
 context_length: 128
 d_model: 256
 num_layers: 4
 num_heads: 4
-d_ff: null  # default: 4*d_model//3
+d_ff: null
 rope_theta: 10000.0
 
 train_steps: 1000

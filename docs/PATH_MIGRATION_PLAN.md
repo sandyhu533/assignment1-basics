@@ -237,4 +237,19 @@ print(p['datasets']['tinystories']['tokenizer_pkl'])
 
 ---
 
+## 十、执行记录（方案 C）
+
+| 日期 | 阶段 | 操作 | 状态 |
+|------|------|------|------|
+| 2025-01-28 | 1 | 创建 configs/paths.yaml, bpe_*.yaml, train_*.yaml, generate_*.yaml | ✅ 完成 |
+| 2025-01-28 | 2 | 创建 data/{tinystories,owt}/{raw,tokenized,tokenizer}, checkpoints/ | ✅ 完成 |
+| 2025-01-28 | 2 | 迁移 tokenizer、raw、tokenized 文件到新路径 | ✅ 完成 |
+| 2025-01-28 | 3 | 创建 scripts/run_bpe.py, run_serialize.py, run_train.py, run_generate.py | ✅ 完成 |
+| 2025-01-28 | 3 | 更新 run.sh 使用新脚本，路径从 YAML 读取 | ✅ 完成 |
+| 2025-01-28 | 5 | 更新 README.md、train.py checkpoint 目录创建 | ✅ 完成 |
+
+**说明**：旧目录 `data/_model`、`data/_serialized` 中文件已复制到新路径，可手动删除旧目录。
+
+---
+
 *文档生成时间：2025-01-28*

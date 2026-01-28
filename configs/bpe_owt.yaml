@@ -1,0 +1,10 @@
+dataset: owt
+vocab_size: 32000
+
+paths:
+  raw_input: data/owt/raw/train.txt
+  tokenizer_output_dir: data/owt/tokenizer
+
+# Download URL (used by run.sh when raw file missing)
+download_url: https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_train.txt.gz
+download_gz: true

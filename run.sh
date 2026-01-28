@@ -1,42 +1,38 @@
 #!/bin/bash
 # Unified run script for BPE training, serialization, model training, and generation.
+# Paths are managed via configs/paths.yaml and configs/bpe_*.yaml, train_*.yaml.
 # Usage: ./run.sh <command> [args...]
 # Commands: bpe | serialize | train | generate
 
 set -e
 export PYTHONPATH=.
 
-DATA_DIR="${DATA_DIR:-data}"
-MODEL_DIR="${MODEL_DIR:-data/_model}"
-OUT_DIR="${OUT_DIR:-data/_serialized}"
-
 case "${1:-help}" in
     bpe)
-        # Train BPE tokenizer
+        # Train BPE tokenizer (reads config from configs/bpe_<dataset>.yaml)
         # Usage: ./run.sh bpe [tinystories|owt]
         DATASET="${2:-tinystories}"
-        mkdir -p "$DATA_DIR" "$MODEL_DIR"
         case "$DATASET" in
             tinystories)
+                RAW_PATH="data/tinystories/raw/train.txt"
                 URL="https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-train.txt"
-                DATA_PATH="$DATA_DIR/TinyStoriesV2-GPT4-train.txt"
-                VOCAB_SIZE=10000
-                if [ ! -f "$DATA_PATH" ]; then
+                if [ ! -f "$RAW_PATH" ]; then
+                    mkdir -p "$(dirname "$RAW_PATH")"
                     echo "Downloading TinyStories..."
-                    wget -O "$DATA_PATH" "$URL"
+                    wget -O "$RAW_PATH" "$URL"
                 fi
                 ;;
             owt)
+                RAW_PATH="data/owt/raw/train.txt"
                 URL="https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_train.txt.gz"
-                DATA_PATH="$DATA_DIR/owt_train.txt"
-                VOCAB_SIZE=32000
-                if [ ! -f "$DATA_PATH" ]; then
-                    if [ ! -f "$DATA_PATH.gz" ]; then
+                if [ ! -f "$RAW_PATH" ]; then
+                    mkdir -p "$(dirname "$RAW_PATH")"
+                    if [ ! -f "$RAW_PATH.gz" ]; then
                         echo "Downloading OpenWebText..."
-                        wget -O "$DATA_PATH.gz" "$URL"
+                        wget -O "$RAW_PATH.gz" "$URL"
                     fi
                     echo "Decompressing..."
-                    gunzip -f "$DATA_PATH.gz"
+                    gunzip -f "$RAW_PATH.gz"
                 fi
                 ;;
             *)
@@ -44,52 +40,66 @@ case "${1:-help}" in
                 exit 1
                 ;;
         esac
-        echo "Training BPE on $DATA_PATH (vocab_size=$VOCAB_SIZE)..."
-        python scripts/train_bpe.py --dataset "$DATA_PATH" --vocab_size $VOCAB_SIZE --output_dir "$MODEL_DIR"
-        echo "Done. Output in $MODEL_DIR"
+        echo "Training BPE on $RAW_PATH (config: configs/bpe_${DATASET}.yaml)..."
+        python scripts/run_bpe.py "$DATASET" --raw_path "$RAW_PATH"
+        echo "Done. Output in data/${DATASET}/tokenizer/"
         ;;
     serialize)
-        # Serialize text to .npy using tokenizer
-        # Usage: ./run.sh serialize <tokenizer.pkl> <input.txt> <output.npy>
-        if [ $# -lt 4 ]; then
-            echo "Usage: ./run.sh serialize <tokenizer.pkl> <input.txt> <output.npy>"
+        # Serialize text to .npy (reads paths from configs/paths.yaml)
+        # Usage: ./run.sh serialize <dataset> [train|valid]
+        #   Or: ./run.sh serialize -- --tokenizer <pkl> --input <txt> --output <npy>
+        shift
+        if [ "$1" = "--" ]; then
+            shift
+            python scripts/run_serialize.py "$@"
+        elif [ -n "$1" ]; then
+            python scripts/run_serialize.py "$1" "${2:-train}"
+        else
+            echo "Usage: ./run.sh serialize <dataset> [train|valid]"
+            echo "   Or: ./run.sh serialize -- --tokenizer <pkl> --input <txt> --output <npy>"
             exit 1
         fi
-        TOKENIZER="$2"
-        INPUT="$3"
-        OUTPUT="$4"
-        mkdir -p "$(dirname "$OUTPUT")"
-        python scripts/serialize.py \
-            --tokenizer_model "$TOKENIZER" \
-            --input_file "$INPUT" \
-            --output_file "$OUTPUT"
-        echo "Serialized to $OUTPUT"
+        echo "Done."
         ;;
     train)
-        # Train Transformer LM
-        # Usage: ./run.sh train --input_file <data.npy> --checkpoint_dir <ckpt> [--load_checkpoint 0|1] ...
+        # Train Transformer LM (reads config from YAML)
+        # Usage: ./run.sh train [tinystories|owt|path/to/config.yaml]
         shift
-        python -m cs336_basics.train "$@"
+        if [ $# -eq 0 ]; then
+            python scripts/run_train.py tinystories
+        else
+            python scripts/run_train.py "$@"
+        fi
         ;;
     generate)
-        # Generate text from checkpoint
-        # Usage: ./run.sh generate --checkpoint <ckpt> --tokenizer <tokenizer.pkl> --prompt "..." ...
+        # Generate text (reads config from YAML)
+        # Usage: ./run.sh generate [tinystories|owt|path/to/config.yaml] [--prompt "..." --max_tokens 100]
         shift
-        python -m cs336_basics.gen "$@"
+        if [ $# -eq 0 ]; then
+            python scripts/run_generate.py tinystories
+        else
+            python scripts/run_generate.py "$@"
+        fi
         ;;
     help|*)
         echo "Usage: ./run.sh <command> [args...]"
         echo ""
         echo "Commands:"
-        echo "  bpe [tinystories|owt]     Train BPE tokenizer (downloads data if needed)"
-        echo "  serialize <tok.pkl> <in.txt> <out.npy>  Serialize text to token IDs"
-        echo "  train [args...]           Train model (pass --input_file, --checkpoint_dir, etc.)"
-        echo "  generate [args...]        Generate text (pass --checkpoint, --tokenizer, etc.)"
+        echo "  bpe [tinystories|owt]       Train BPE tokenizer (downloads data if needed)"
+        echo "  serialize <dataset> [split] Serialize text to token IDs (dataset: tinystories|owt, split: train|valid)"
+        echo "  train [config]              Train model (config: tinystories|owt or path to YAML)"
+        echo "  generate [config]            Generate text (config: tinystories|owt or path to YAML)"
         echo ""
         echo "Examples:"
         echo "  ./run.sh bpe tinystories"
-        echo "  ./run.sh serialize data/_model/TinyStoriesV2-GPT4-train.txt.result.pkl data/TinyStoriesV2-GPT4-train.txt data/_serialized/tinystories_train.npy"
-        echo "  ./run.sh train --input_file data/_serialized/tinystories_train.npy --checkpoint_dir ckpt --load_checkpoint 0"
-        echo "  ./run.sh generate --checkpoint ckpt --tokenizer data/_model/TinyStoriesV2-GPT4-train.txt.result.pkl --vocab_size 10000 --context_length 128 --prompt 'Once upon a time'"
+        echo "  ./run.sh serialize tinystories train"
+        echo "  ./run.sh train tinystories"
+        echo "  ./run.sh generate tinystories --prompt 'Once upon a time' --max_tokens 100"
+        echo ""
+        echo "Path structure (configs/paths.yaml):"
+        echo "  data/<dataset>/raw/         Raw text"
+        echo "  data/<dataset>/tokenized/   Tokenized .npy"
+        echo "  data/<dataset>/tokenizer/   BPE model (model.pkl, model.json)"
+        echo "  checkpoints/<run_name>/     Model checkpoints"
         ;;
 esac

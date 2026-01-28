@@ -91,6 +91,9 @@ def main():
             data, args.batch_size, args.context_length, args.device
         )
 
+    ckpt_dir = os.path.dirname(args.checkpoint_dir)
+    if ckpt_dir:
+        os.makedirs(ckpt_dir, exist_ok=True)
     save_checkpoint(model, optimizer, step, args.checkpoint_dir)
     print(f"Checkpoint saved at step {step}")
 

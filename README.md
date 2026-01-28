@@ -28,18 +28,30 @@ assignment1-basics/
 │   ├── generation.py      # Text generation (sample_next_token, generate)
 │   ├── train.py            # Training logic + CLI
 │   └── gen.py              # Generation CLI
-├── configs/                # Training configs (optional)
+├── configs/                # Paths and training configs (YAML)
+│   ├── paths.yaml          # Global path config
+│   ├── bpe_tinystories.yaml
+│   ├── bpe_owt.yaml
 │   ├── train_tiny.yaml
-│   └── train_owt.yaml
-├── scripts/                # CLI entry points
+│   ├── train_owt.yaml
+│   └── generate_*.yaml
+├── scripts/                # CLI entry points (read YAML)
+│   ├── run_bpe.py
+│   ├── run_serialize.py
+│   ├── run_train.py
+│   ├── run_generate.py
 │   ├── train.py
 │   ├── generate.py
 │   ├── train_bpe.py
 │   └── serialize.py
 ├── tests/                  # Unit tests
-├── data/                   # Data and model outputs
-│   ├── _model/             # BPE tokenizers
-│   └── _serialized/        # Tokenized .npy files
+├── data/                   # Data (dataset-centric layout)
+│   ├── tinystories/
+│   │   ├── raw/            # Raw text
+│   │   ├── tokenized/      # .npy files
+│   │   └── tokenizer/      # BPE model.pkl, model.json
+│   └── owt/
+├── checkpoints/            # Model checkpoints
 ├── run.sh                  # Unified CLI for all commands
 └── pyproject.toml
 ```
@@ -96,40 +108,30 @@ Downloads data (if needed) and trains a BPE tokenizer:
 ./run.sh bpe owt
 ```
 
-Output: `data/_model/<dataset>.result.pkl` and `.result.json`
+Output: `data/<dataset>/tokenizer/model.pkl` and `model.json`
 
 ### 2. Serialize Text to Token IDs
 
-Convert raw text to a NumPy array of token IDs:
+Convert raw text to a NumPy array of token IDs (paths from `configs/paths.yaml`):
 
 ```sh
-./run.sh serialize \
-  data/_model/TinyStoriesV2-GPT4-train.txt.result.pkl \
-  data/TinyStoriesV2-GPT4-train.txt \
-  data/_serialized/tinystories_train.npy
+./run.sh serialize tinystories train
+./run.sh serialize owt valid
 ```
 
 ### 3. Train Transformer LM
 
-Train a causal language model on tokenized data:
+Train a causal language model (config from `configs/train_*.yaml`):
 
 ```sh
-# From scratch
-uv run python -m cs336_basics.train \
-  --input_file data/_serialized/tinystories_train.npy \
-  --checkpoint_dir ckpt \
-  --load_checkpoint 0 \
-  --batch_size 32 \
-  --context_length 128 \
-  --d_model 256 \
-  --num_layers 4 \
-  --train_steps 1000
+# From config (tinystories or owt)
+./run.sh train tinystories
 
-# Resume from checkpoint
+# Or with explicit args
 uv run python -m cs336_basics.train \
-  --input_file data/_serialized/tinystories_train.npy \
-  --checkpoint_dir ckpt \
-  --load_checkpoint 1
+  --input_file data/tinystories/tokenized/train.npy \
+  --checkpoint_dir checkpoints/tinystories_small/checkpoint.pt \
+  --load_checkpoint 0
 ```
 
 **Training arguments:**
@@ -158,14 +160,16 @@ uv run python -m cs336_basics.train \
 Generate text from a trained checkpoint:
 
 ```sh
+./run.sh generate tinystories --prompt "Once upon a time" --max_tokens 100
+
+# Or with explicit args
 uv run python -m cs336_basics.gen \
-  --checkpoint ckpt \
-  --tokenizer data/_model/TinyStoriesV2-GPT4-train.txt.result.pkl \
+  --checkpoint checkpoints/tinystories_small/checkpoint.pt \
+  --tokenizer data/tinystories/tokenizer/model.pkl \
   --vocab_size 10000 \
   --context_length 128 \
   --prompt "Once upon a time" \
-  --max_tokens 100 \
-  --temperature 0.8
+  --max_tokens 100
 ```
 
 **Generation arguments:**
@@ -185,8 +189,8 @@ uv run python -m cs336_basics.gen \
 ### Console Scripts (after `uv sync`)
 
 ```sh
-uv run cs336-train --input_file data.npy --checkpoint_dir ckpt --load_checkpoint 0
-uv run cs336-generate --checkpoint ckpt --tokenizer tok.pkl --vocab_size 10000 --context_length 128
+uv run cs336-train --input_file data/tinystories/tokenized/train.npy --checkpoint_dir checkpoints/tinystories_small/checkpoint.pt --load_checkpoint 0
+uv run cs336-generate --checkpoint checkpoints/tinystories_small/checkpoint.pt --tokenizer data/tinystories/tokenizer/model.pkl --vocab_size 10000 --context_length 128
 ```
 
 ---
@@ -245,32 +249,13 @@ cd ..
 ./run.sh bpe tinystories
 
 # 2. Serialize train split
-./run.sh serialize \
-  data/_model/TinyStoriesV2-GPT4-train.txt.result.pkl \
-  data/TinyStoriesV2-GPT4-train.txt \
-  data/_serialized/tinystories_train.npy
+./run.sh serialize tinystories train
 
-# 3. Train model (small config for quick test)
-uv run python -m cs336_basics.train \
-  --input_file data/_serialized/tinystories_train.npy \
-  --checkpoint_dir ckpt \
-  --load_checkpoint 0 \
-  --batch_size 16 \
-  --context_length 64 \
-  --d_model 128 \
-  --num_layers 2 \
-  --train_steps 100
+# 3. Train model (config from configs/train_tiny.yaml)
+./run.sh train tinystories
 
 # 4. Generate
-uv run python -m cs336_basics.gen \
-  --checkpoint ckpt \
-  --tokenizer data/_model/TinyStoriesV2-GPT4-train.txt.result.pkl \
-  --vocab_size 10000 \
-  --context_length 64 \
-  --d_model 128 \
-  --num_layers 2 \
-  --prompt "Once upon a time" \
-  --max_tokens 50
+./run.sh generate tinystories --prompt "Once upon a time" --max_tokens 50
 ```
 
 ---

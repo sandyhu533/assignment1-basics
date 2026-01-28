@@ -267,6 +267,12 @@ def main():
         default="data/_model/",
         help="Directory to save the resulting tokenizer files"
     )
+    parser.add_argument(
+        "--output_name",
+        type=str,
+        default=None,
+        help="Base name for output files (default: input filename). Use 'model' for model.pkl/model.json",
+    )
     
     args = parser.parse_args()
 
@@ -274,8 +280,9 @@ def main():
     
     os.makedirs(args.output_dir, exist_ok=True)
     
-    base_name = os.path.basename(args.dataset)
-    save_path = os.path.join(args.output_dir, f"{base_name}.result")
+    base_name = args.output_name if args.output_name else os.path.basename(args.dataset)
+    stem = base_name if args.output_name else f"{base_name}.result"
+    save_path = os.path.join(args.output_dir, stem)
     
     print(f"Training on {args.dataset} with vocab size {args.vocab_size}...")
     
@@ -285,9 +292,9 @@ def main():
         special_tokens=["<|endoftext|>"]
     )
     
-    save_tokenizer_json(token2byte, merges, save_path+".json")
-    save_tokenizer_pickle(token2byte, merges, save_path+".pkl")
-    print(f"Successfully saved to {save_path}.json/.pkl")
+    save_tokenizer_json(token2byte, merges, save_path + ".json")
+    save_tokenizer_pickle(token2byte, merges, save_path + ".pkl")
+    print(f"Successfully saved to {save_path}.json and {save_path}.pkl")
 
 if __name__ == '__main__':
     main()

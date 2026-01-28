@@ -1,0 +1,28 @@
+# Global path config. Can be overridden by environment variables.
+base:
+  data_dir: data
+  checkpoint_dir: checkpoints
+
+datasets:
+  tinystories:
+    raw_dir: data/tinystories/raw
+    tokenized_dir: data/tinystories/tokenized
+    tokenizer_dir: data/tinystories/tokenizer
+    raw_train: data/tinystories/raw/train.txt
+    raw_valid: data/tinystories/raw/valid.txt
+    tokenized_train: data/tinystories/tokenized/train.npy
+    tokenized_valid: data/tinystories/tokenized/valid.npy
+    tokenizer_pkl: data/tinystories/tokenizer/model.pkl
+    tokenizer_json: data/tinystories/tokenizer/model.json
+    checkpoint: checkpoints/tinystories_small/checkpoint.pt
+  owt:
+    raw_dir: data/owt/raw
+    tokenized_dir: data/owt/tokenized
+    tokenizer_dir: data/owt/tokenizer
+    raw_train: data/owt/raw/train.txt
+    raw_valid: data/owt/raw/valid.txt
+    tokenized_train: data/owt/tokenized/train.npy
+    tokenized_valid: data/owt/tokenized/valid.npy
+    tokenizer_pkl: data/owt/tokenizer/model.pkl
+    tokenizer_json: data/owt/tokenizer/model.json
+    checkpoint: checkpoints/owt_medium/checkpoint.pt

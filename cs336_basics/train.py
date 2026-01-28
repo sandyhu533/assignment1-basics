@@ -8,6 +8,7 @@ for backward compatibility with tests/adapters.py.
 import argparse
 import numpy as np
 import torch
+import os
 
 from cs336_basics.data import get_batch, save_checkpoint, load_checkpoint
 from cs336_basics.model import TransformerLM, AdamW, cross_entropy

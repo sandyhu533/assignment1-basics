@@ -35,6 +35,16 @@ def main():
         parser.error("Provide config path or name (tinystories|owt)")
         return
 
+    if not Path(config_path).exists():
+        if args.config and "tinytories" in args.config.lower():
+            parser.error(
+                f"Unknown config '{args.config}'. Did you mean 'tinystories'? "
+                "Use: ./run.sh train tinystories"
+            )
+        else:
+            parser.error(f"Config file not found: {config_path}")
+        return
+
     with open(config_path) as f:
         config = yaml.safe_load(f)
 

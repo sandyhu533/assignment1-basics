@@ -5,7 +5,7 @@ paths:
   input_file: data/tinystories/tokenized/train.npy
   checkpoint_dir: checkpoints/tinystories_small/checkpoint.pt
 
-load_checkpoint: 0
+load_checkpoint: 1
 batch_size: 32
 context_length: 128
 d_model: 256
@@ -14,7 +14,7 @@ num_heads: 4
 d_ff: null
 rope_theta: 10000.0
 
-train_steps: 1000
+train_steps: 10
 lr: 0.001
 b1: 0.9
 b2: 0.99

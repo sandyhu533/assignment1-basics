@@ -163,5 +163,8 @@ cython_debug/
 *.zip
 
 /data/*
-!/data/_model
+!/data/*/
+/data/*/*
+!/data/*/tokenizer/
 tests/fixtures
+checkpoints/

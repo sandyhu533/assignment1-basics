@@ -75,7 +75,8 @@ class RotaryPositionalEmbedding(nn.Module):
         R = torch.zeros((max_seq_len, d_k, d_k), **factory_kwargs)
         cos_v = torch.cos(angles)
         sin_v = torch.sin(angles)
-        idx = torch.arange(d_k // 2, **factory_kwargs)
+        # Indices must be long/int for tensor indexing (not float from factory_kwargs)
+        idx = torch.arange(d_k // 2, dtype=torch.long, device=factory_kwargs.get("device"))
         R[:, 2 * idx, 2 * idx] = cos_v
         R[:, 2 * idx, 2 * idx + 1] = -sin_v
         R[:, 2 * idx + 1, 2 * idx] = sin_v

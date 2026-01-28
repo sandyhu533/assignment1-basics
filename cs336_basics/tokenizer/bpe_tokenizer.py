@@ -231,15 +231,15 @@ def serialize_dataset(tokenizer, input_file, output_file):
 def main():
     parser = argparse.ArgumentParser(description="Serialize text dataset to NumPy uint16 array.")
     parser.add_argument("--test", type=int, default=0, help="Run test")
-            
+    parser.add_argument("--tokenizer_model", type=str, help="Path to .result.pkl or .json tokenizer file")
+    parser.add_argument("--input_file", type=str, help="Path to raw .txt file")
+    parser.add_argument("--output_file", type=str, help="Path to save .npy file")
     args = parser.parse_args()
+
     if args.test == 1:
         return test()
-    
-    parser.add_argument("--tokenizer_model", type=str, required=True, help="Path to .result.pkl or .json tokenizer file")
-    parser.add_argument("--input_file", type=str, required=True, help="Path to raw .txt file")
-    parser.add_argument("--output_file", type=str, required=True, help="Path to save .npy file")
-    args = parser.parse_args()
+    if not (args.tokenizer_model and args.input_file and args.output_file):
+        parser.error("--tokenizer_model, --input_file, --output_file are required")
     
     # 1. 加载 Tokenizer
     print(f"Loading tokenizer from {args.tokenizer_model}...")

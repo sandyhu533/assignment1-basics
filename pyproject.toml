@@ -21,6 +21,10 @@ dependencies = [
     "ty>=0.0.1a16",
 ]
 
+[project.scripts]
+cs336-train = "cs336_basics.train:main"
+cs336-generate = "cs336_basics.gen:main"
+
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"

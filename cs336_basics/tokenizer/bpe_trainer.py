@@ -4,7 +4,7 @@ from typing import BinaryIO
 from datetime import datetime
 from multiprocessing import Process, Queue
 import pickle
-from cs336_basics.linkedlist import Node
+from cs336_basics.tokenizer.linkedlist import Node
 import argparse
 
 
@@ -27,7 +27,7 @@ def find_chunk_boundaries(
     chunk_size = file_size // desired_num_chunks
 
     # Initial guesses for chunk boundary locations, uniformly spaced
-    # Chunks start on previous index, don't include last index
+    # Chunks start on previous index, don't start on last index
     chunk_boundaries = [i * chunk_size for i in range(desired_num_chunks + 1)]
     chunk_boundaries[-1] = file_size
 

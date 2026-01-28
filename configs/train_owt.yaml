@@ -1,0 +1,21 @@
+# OpenWebText training config (larger)
+input_file: data/_serialized/owt_train.npy
+checkpoint_dir: ckpt_owt
+load_checkpoint: 0
+
+batch_size: 32
+context_length: 128
+d_model: 512
+num_layers: 6
+num_heads: 8
+d_ff: null
+rope_theta: 10000.0
+
+train_steps: 5000
+lr: 0.0005
+b1: 0.9
+b2: 0.99
+weight_decay: 0.01
+eps: 1.0e-8
+
+device: cpu

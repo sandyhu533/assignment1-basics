@@ -7,8 +7,11 @@ for backward compatibility with tests/adapters.py.
 
 import argparse
 import json
+import logging
 import os
 import re
+import time
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -73,6 +76,17 @@ def main():
     args = parser.parse_args()
     d_ff = args.d_ff or (4 * args.d_model // 3)
 
+    # Logging: console with timestamp and elapsed time
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger("train")
+    run_start_time = time.perf_counter()
+    run_start_iso = datetime.now().isoformat(timespec="seconds")
+    logger.info("Run started at %s", run_start_iso)
+
     # Memory-efficient loading with np.memmap for large datasets
     if args.mmap:
         data = np.load(args.input_file, mmap_mode="r", allow_pickle=False)
@@ -100,6 +114,8 @@ def main():
         device=args.device,
         dtype=torch.float32,
     )
+    if args.device == "mps":
+        model = torch.compile(model, backend="aot_eager")
     optimizer = AdamW(
         model.parameters(),
         (args.b1, args.b2),
@@ -114,8 +130,10 @@ def main():
 
     steps_log = []
     losses_log = []
+    step_details = []  # [{step, loss, elapsed_sec, timestamp_iso}]
 
     for _ in range(args.train_steps):
+        step_start = time.perf_counter()
         model.zero_grad()
         step += 1
         outputs = model(inputs)
@@ -123,20 +141,39 @@ def main():
         loss_val = loss.item()
         steps_log.append(step)
         losses_log.append(loss_val)
-        print(f"step={step} loss={loss_val:.4f}")
+        elapsed = time.perf_counter() - step_start
+        step_details.append({
+            "step": step,
+            "loss": loss_val,
+            "elapsed_sec": round(elapsed, 4),
+            "timestamp_iso": datetime.now().isoformat(timespec="seconds"),
+        })
+        total_elapsed = time.perf_counter() - run_start_time
+        logger.info(
+            "step=%d loss=%.4f step_sec=%.3f total_sec=%.1f",
+            step, loss_val, elapsed, total_elapsed,
+        )
         loss.backward()
         optimizer.step()
         inputs, labels = get_batch(
             data, args.batch_size, args.context_length, args.device
         )
 
+    run_end_time = time.perf_counter()
+    run_end_iso = datetime.now().isoformat(timespec="seconds")
+    total_seconds = round(run_end_time - run_start_time, 2)
+    logger.info("Run finished at %s, total time %.1f s", run_end_iso, total_seconds)
+
     ckpt_dir = os.path.dirname(args.checkpoint_dir)
     if ckpt_dir:
         os.makedirs(ckpt_dir, exist_ok=True)
     save_checkpoint(model, optimizer, step, args.checkpoint_dir)
-    print(f"Checkpoint saved at step {step}")
+    logger.info("Checkpoint saved at step %d", step)
 
-    # Save loss log and plot
+    # Serialize run params for logging (skip non-JSON-serializable)
+    run_params = {k: v for k, v in vars(args).items() if isinstance(v, (str, int, float, bool, type(None)))}
+
+    # Save loss log and plot (with run metadata and per-step details)
     note_safe = re.sub(r"[^\w\-]", "_", args.run_note)[:32] if args.run_note else ""
     log_name = f"train_loss_{note_safe}.json" if note_safe else "train_loss.json"
     plot_name = f"loss_{note_safe}.png" if note_safe else "loss.png"
@@ -145,13 +182,18 @@ def main():
 
     loss_log = {
         "run_note": args.run_note or "(no note)",
+        "run_params": run_params,
+        "start_time_iso": run_start_iso,
+        "end_time_iso": run_end_iso,
+        "total_seconds": total_seconds,
+        "checkpoint_dir": args.checkpoint_dir,
         "steps": steps_log,
         "losses": losses_log,
-        "checkpoint_dir": args.checkpoint_dir,
+        "step_details": step_details,
     }
     with open(log_path, "w") as f:
         json.dump(loss_log, f, indent=2)
-    print(f"Loss log saved to {log_path}")
+    logger.info("Loss log saved to %s", log_path)
 
     if not args.no_plot:
         try:
@@ -168,9 +210,9 @@ def main():
             plt.tight_layout()
             plt.savefig(plot_path, dpi=150)
             plt.close()
-            print(f"Loss plot saved to {plot_path}")
+            logger.info("Loss plot saved to %s", plot_path)
         except Exception as e:
-            print(f"Could not save loss plot: {e}")
+            logger.warning("Could not save loss plot: %s", e)
 
 
 if __name__ == "__main__":

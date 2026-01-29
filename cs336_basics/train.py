@@ -42,16 +42,34 @@ def main():
     parser.add_argument("--b2", type=float, default=0.99, help="Adam beta2")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay")
     parser.add_argument("--eps", type=float, default=1e-8, help="Adam epsilon")
+    parser.add_argument(
+        "--vocab_size",
+        type=int,
+        default=None,
+        help="Vocab size (from tokenizer). If not set, computed from data (slower for large files)",
+    )
+    parser.add_argument(
+        "--mmap",
+        action="store_true",
+        default=True,
+        help="Use memory-mapped loading for large datasets (default: True)",
+    )
+    parser.add_argument("--no-mmap", action="store_false", dest="mmap", help="Load full array into RAM")
 
     args = parser.parse_args()
     d_ff = args.d_ff or (4 * args.d_model // 3)
 
-    data = np.load(args.input_file, allow_pickle=True)
-    if isinstance(data, np.ndarray) and data.ndim > 1:
-        data = data.ravel()
+    # Memory-efficient loading with np.memmap for large datasets
+    if args.mmap:
+        data = np.load(args.input_file, mmap_mode="r", allow_pickle=False)
     else:
-        data = np.asarray(data).ravel()
-    vocab_size = int(np.max(data)) + 1
+        data = np.load(args.input_file, allow_pickle=True)
+    if data.ndim > 1:
+        data = data.ravel()
+    if args.vocab_size is not None:
+        vocab_size = args.vocab_size
+    else:
+        vocab_size = int(np.max(data)) + 1
 
     inputs, labels = get_batch(
         data, args.batch_size, args.context_length, args.device

@@ -8,7 +8,7 @@ paths:
 model:
   vocab_size: 10000
   context_length: 128
-  d_model: 256
+  d_model: 512
   num_layers: 4
   num_heads: 4
   d_ff: null
@@ -19,5 +19,6 @@ generation:
   max_tokens: 100
   temperature: 0.8
   top_k: null
+  top_p: 0.1
 
 device: cpu

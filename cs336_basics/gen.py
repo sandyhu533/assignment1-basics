@@ -73,13 +73,15 @@ def main():
     )
     if prompt_tensor.size(-1) > args.context_length:
         prompt_tensor = prompt_tensor[:, -args.context_length:]
-
+    
+    eos_token_id = 256
     output_ids = generate(
         model,
         prompt_tensor,
         max_new_tokens=args.max_tokens,
         temperature=args.temperature,
         top_k=args.top_k,
+        eos_token_id=eos_token_id
     )
     output_ids = output_ids.cpu().tolist()
     if isinstance(output_ids[0], list):

@@ -1,6 +1,8 @@
 dataset: owt
 run_name: owt_medium
 
+vocab_size: 32000
+
 paths:
   input_file: data/owt/tokenized/train.npy
   checkpoint_dir: checkpoints/owt_medium/checkpoint.pt

@@ -26,7 +26,11 @@ def get_batch(
     Returns:
         Tuple of (inputs, labels), each of shape (batch_size, context_length).
     """
-    data = np.asarray(dataset).ravel()
+    # Avoid np.asarray on memmap (would copy entire array to RAM)
+    if hasattr(dataset, "ravel"):
+        data = dataset.ravel() if dataset.ndim > 1 else dataset
+    else:
+        data = np.asarray(dataset).ravel()
     size = data.size
     num_starts = max(0, size - context_length)
     batch_size = min(batch_size, num_starts)

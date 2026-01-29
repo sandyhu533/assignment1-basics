@@ -57,6 +57,7 @@ def main():
     Path(checkpoint_dir).parent.mkdir(parents=True, exist_ok=True)
 
     # Build train args
+    vocab_size = config.get("vocab_size")
     train_args = [
         "train",
         "--input_file", input_file,
@@ -76,6 +77,8 @@ def main():
         "--weight_decay", str(config.get("weight_decay", 0.01)),
         "--eps", str(config.get("eps", 1e-8)),
     ]
+    if vocab_size is not None:
+        train_args.extend(["--vocab_size", str(vocab_size)])
     if config.get("d_ff"):
         train_args.extend(["--d_ff", str(config["d_ff"])])
 

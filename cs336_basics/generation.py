@@ -2,13 +2,14 @@
 
 import torch
 
-from cs336_basics.model import TransformerLM
+from cs336_basics.model import TransformerLM, softmax
 
 
 def sample_next_token(
     logits: torch.Tensor,
     temperature: float = 1.0,
     top_k: int | None = None,
+    top_p: float | None = None,
 ) -> torch.Tensor:
     """
     Sample next token from logits with optional temperature and top-k.
@@ -24,11 +25,20 @@ def sample_next_token(
     if temperature <= 0:
         return logits.argmax(dim=-1)
     logits = logits / temperature
-    if top_k is not None and top_k > 0:
+    if top_p is not None and 0.0 < top_p < 1.0:
+        sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
+        probs = torch.softmax(sorted_logits, dim=-1)
+        cumulative_probs = torch.cumsum(probs, dim=-1)
+        sorted_indices_to_remove = cumulative_probs > top_p
+        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+        sorted_indices_to_remove[..., 0] = 0
+        indices_to_remove = sorted_indices_to_remove.scatter(dim=-1, index=sorted_indices, src=sorted_indices_to_remove)
+        logits = logits.masked_fill(indices_to_remove, float("-inf"))
+    elif top_k is not None and top_k > 0:
         v, _ = torch.topk(logits, min(top_k, logits.size(-1)), dim=-1)
         logits = logits.clone()
         logits[logits < v[..., -1, None]] = float("-inf")
-    probs = torch.softmax(logits, dim=-1)
+    probs = softmax(logits, dim=-1)
     return torch.multinomial(probs, num_samples=1).squeeze(-1)
 
 

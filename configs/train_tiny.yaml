@@ -1,24 +1,27 @@
 dataset: tinystories
 run_name: tinystories_small
 
+# vocab_size from tokenizer (avoids scanning full dataset for np.max)
+vocab_size: 10000
+
 paths:
   input_file: data/tinystories/tokenized/train.npy
   checkpoint_dir: checkpoints/tinystories_small/checkpoint.pt
 
-load_checkpoint: 1
+load_checkpoint: 0
 batch_size: 32
 context_length: 128
-d_model: 256
+d_model: 512
 num_layers: 4
 num_heads: 4
 d_ff: null
 rope_theta: 10000.0
 
-train_steps: 10
+train_steps: 100
 lr: 0.001
 b1: 0.9
 b2: 0.99
 weight_decay: 0.01
 eps: 1.0e-8
 
-device: cpu
+device: mps

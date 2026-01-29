@@ -20,6 +20,7 @@ def main():
     parser.add_argument("config", nargs="?", help="Config name (tinystories|owt) or path to YAML")
     parser.add_argument("--config", dest="config_path", type=str, help="Path to config YAML")
     parser.add_argument("--load_checkpoint", type=int, default=None, choices=[0, 1], help="Override load_checkpoint")
+    parser.add_argument("--note", type=str, default=None, help="Run note for loss plot (e.g. baseline, lr=1e-4)")
     args = parser.parse_args()
 
     root = Path(__file__).parent.parent
@@ -79,6 +80,9 @@ def main():
     ]
     if vocab_size is not None:
         train_args.extend(["--vocab_size", str(vocab_size)])
+    run_note = args.note if args.note is not None else config.get("run_note", "")
+    if run_note:
+        train_args.extend(["--run_note", str(run_note)])
     if config.get("d_ff"):
         train_args.extend(["--d_ff", str(config["d_ff"])])
 

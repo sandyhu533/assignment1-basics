@@ -2,7 +2,7 @@
 # Unified run script for BPE training, serialization, model training, and generation.
 # Paths are managed via configs/paths.yaml and configs/bpe_*.yaml, train_*.yaml.
 # Usage: ./run.sh <command> [args...]
-# Commands: bpe | serialize | train | generate
+# Commands: bpe | serialize | train | generate | plot
 
 set -e
 export PYTHONPATH=.
@@ -81,6 +81,18 @@ case "${1:-help}" in
             python scripts/run_generate.py "$@"
         fi
         ;;
+    plot)
+        # Plot training loss (single run or compare multiple runs)
+        # Usage: ./run.sh plot checkpoints/tinystories_small/
+        #   or: ./run.sh plot checkpoints/tinystories_small/train_loss_baseline.json checkpoints/tinystories_small/train_loss_v2.json
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Usage: ./run.sh plot <dir_or_json> [dir_or_json ...]"
+            echo "  e.g. ./run.sh plot checkpoints/tinystories_small/"
+            exit 1
+        fi
+        python scripts/plot_losses.py "$@"
+        ;;
     help|*)
         echo "Usage: ./run.sh <command> [args...]"
         echo ""
@@ -88,12 +100,15 @@ case "${1:-help}" in
         echo "  bpe [tinystories|owt]       Train BPE tokenizer (downloads data if needed)"
         echo "  serialize <dataset> [split] Serialize text to token IDs (dataset: tinystories|owt, split: train|valid)"
         echo "  train [config]              Train model (config: tinystories|owt or path to YAML)"
-        echo "  generate [config]            Generate text (config: tinystories|owt or path to YAML)"
+        echo "  generate [config]           Generate text (config: tinystories|owt or path to YAML)"
+        echo "  plot [dir|json...]          Plot loss (single or compare multiple runs)"
         echo ""
         echo "Examples:"
         echo "  ./run.sh bpe tinystories"
         echo "  ./run.sh serialize tinystories train"
         echo "  ./run.sh train tinystories"
+        echo "  ./run.sh train tinystories --note baseline"
+        echo "  ./run.sh plot checkpoints/tinystories_small/"
         echo "  ./run.sh generate tinystories --prompt 'Once upon a time' --max_tokens 100"
         echo ""
         echo "Path structure (configs/paths.yaml):"

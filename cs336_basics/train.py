@@ -6,9 +6,12 @@ for backward compatibility with tests/adapters.py.
 """
 
 import argparse
+import json
+import os
+import re
+
 import numpy as np
 import torch
-import os
 
 from cs336_basics.data import get_batch, save_checkpoint, load_checkpoint
 from cs336_basics.model import TransformerLM, AdamW, cross_entropy
@@ -55,6 +58,17 @@ def main():
         help="Use memory-mapped loading for large datasets (default: True)",
     )
     parser.add_argument("--no-mmap", action="store_false", dest="mmap", help="Load full array into RAM")
+    parser.add_argument(
+        "--run_note",
+        type=str,
+        default="",
+        help="Note for this run (e.g. 'baseline', 'lr=1e-4'). Used in loss plot title/legend and log filename.",
+    )
+    parser.add_argument(
+        "--no_plot",
+        action="store_true",
+        help="Do not save loss plot (only save loss log JSON)",
+    )
 
     args = parser.parse_args()
     d_ff = args.d_ff or (4 * args.d_model // 3)
@@ -98,12 +112,18 @@ def main():
     if args.load_checkpoint == 1:
         step = load_checkpoint(args.checkpoint_dir, model, optimizer)
 
+    steps_log = []
+    losses_log = []
+
     for _ in range(args.train_steps):
         model.zero_grad()
         step += 1
         outputs = model(inputs)
         loss = cross_entropy(outputs, labels)
-        print(f"step={step} loss={loss.item():.4f}")
+        loss_val = loss.item()
+        steps_log.append(step)
+        losses_log.append(loss_val)
+        print(f"step={step} loss={loss_val:.4f}")
         loss.backward()
         optimizer.step()
         inputs, labels = get_batch(
@@ -115,6 +135,42 @@ def main():
         os.makedirs(ckpt_dir, exist_ok=True)
     save_checkpoint(model, optimizer, step, args.checkpoint_dir)
     print(f"Checkpoint saved at step {step}")
+
+    # Save loss log and plot
+    note_safe = re.sub(r"[^\w\-]", "_", args.run_note)[:32] if args.run_note else ""
+    log_name = f"train_loss_{note_safe}.json" if note_safe else "train_loss.json"
+    plot_name = f"loss_{note_safe}.png" if note_safe else "loss.png"
+    log_path = os.path.join(ckpt_dir, log_name) if ckpt_dir else log_name
+    plot_path = os.path.join(ckpt_dir, plot_name) if ckpt_dir else plot_name
+
+    loss_log = {
+        "run_note": args.run_note or "(no note)",
+        "steps": steps_log,
+        "losses": losses_log,
+        "checkpoint_dir": args.checkpoint_dir,
+    }
+    with open(log_path, "w") as f:
+        json.dump(loss_log, f, indent=2)
+    print(f"Loss log saved to {log_path}")
+
+    if not args.no_plot:
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            plt.figure(figsize=(8, 5))
+            plt.plot(steps_log, losses_log, color="C0", linewidth=1)
+            plt.xlabel("Step")
+            plt.ylabel("Loss")
+            title = f"Training Loss ({args.run_note})" if args.run_note else "Training Loss"
+            plt.title(title)
+            plt.grid(True, alpha=0.3)
+            plt.tight_layout()
+            plt.savefig(plot_path, dpi=150)
+            plt.close()
+            print(f"Loss plot saved to {plot_path}")
+        except Exception as e:
+            print(f"Could not save loss plot: {e}")
 
 
 if __name__ == "__main__":

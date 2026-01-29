@@ -1,6 +1,9 @@
 dataset: tinystories
 run_name: tinystories_small
 
+# run_note: 本次实验备注，用于 loss 图标题/图例，便于多次实验对比
+run_note: ""
+
 # vocab_size from tokenizer (avoids scanning full dataset for np.max)
 vocab_size: 10000
 
@@ -8,7 +11,7 @@ paths:
   input_file: data/tinystories/tokenized/train.npy
   checkpoint_dir: checkpoints/tinystories_small/checkpoint.pt
 
-load_checkpoint: 0
+load_checkpoint: 1
 batch_size: 32
 context_length: 128
 d_model: 512

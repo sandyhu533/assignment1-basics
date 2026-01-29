@@ -22,6 +22,11 @@ rope_theta: 10000.0
 
 train_steps: 5000
 lr: 0.001
+# Cosine LR schedule with warmup
+max_lr: 0.001
+min_lr: 0.00001
+warmup_iters: 100
+# cosine_iters: 5000   # default: same as train_steps
 b1: 0.9
 b2: 0.99
 weight_decay: 0.01

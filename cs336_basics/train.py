@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from cs336_basics.data import get_batch, save_checkpoint, load_checkpoint
-from cs336_basics.model import TransformerLM, AdamW, cross_entropy
+from cs336_basics.model import TransformerLM, AdamW, cross_entropy, get_lr_learning_rate
 
 # Re-export for adapters
 __all__ = ["get_batch", "save_checkpoint", "load_checkpoint", "main"]
@@ -72,9 +72,35 @@ def main():
         action="store_true",
         help="Do not save loss plot (only save loss log JSON)",
     )
+    # Cosine LR schedule with warmup (used by get_lr_learning_rate)
+    parser.add_argument(
+        "--max_lr",
+        type=float,
+        default=1e-3,
+        help="Peak learning rate after warmup (default: 1e-3)",
+    )
+    parser.add_argument(
+        "--min_lr",
+        type=float,
+        default=1e-5,
+        help="Minimum learning rate at end of cosine decay (default: 1e-5)",
+    )
+    parser.add_argument(
+        "--warmup_iters",
+        type=int,
+        default=100,
+        help="Number of warmup steps for linear ramp to max_lr (default: 100)",
+    )
+    parser.add_argument(
+        "--cosine_iters",
+        type=int,
+        default=None,
+        help="Total steps for cosine decay (default: same as train_steps)",
+    )
 
     args = parser.parse_args()
     d_ff = args.d_ff or (4 * args.d_model // 3)
+    cosine_iters = args.cosine_iters if args.cosine_iters is not None else args.train_steps
 
     # Logging: console with timestamp and elapsed time
     logging.basicConfig(
@@ -121,7 +147,7 @@ def main():
         (args.b1, args.b2),
         args.weight_decay,
         args.eps,
-        args.lr,
+        args.max_lr,
     )
 
     step = 0
@@ -133,6 +159,10 @@ def main():
     step_details = []  # [{step, loss, elapsed_sec, timestamp_iso}]
 
     for _ in range(args.train_steps):
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = get_lr_learning_rate(
+                step, args.max_lr, args.min_lr, args.warmup_iters, cosine_iters
+            )
         step_start = time.perf_counter()
         model.zero_grad()
         step += 1

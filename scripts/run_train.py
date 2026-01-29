@@ -73,6 +73,9 @@ def main():
         "--rope_theta", str(config.get("rope_theta", 10000.0)),
         "--train_steps", str(config.get("train_steps", 1000)),
         "--lr", str(config.get("lr", 1e-3)),
+        "--max_lr", str(config.get("max_lr", 1e-3)),
+        "--min_lr", str(config.get("min_lr", 1e-5)),
+        "--warmup_iters", str(config.get("warmup_iters", 100)),
         "--b1", str(config.get("b1", 0.9)),
         "--b2", str(config.get("b2", 0.99)),
         "--weight_decay", str(config.get("weight_decay", 0.01)),
@@ -85,6 +88,8 @@ def main():
         train_args.extend(["--run_note", str(run_note)])
     if config.get("d_ff"):
         train_args.extend(["--d_ff", str(config["d_ff"])])
+    if config.get("cosine_iters") is not None:
+        train_args.extend(["--cosine_iters", str(config["cosine_iters"])])
 
     sys.argv = train_args
     from cs336_basics.train import main as train_main

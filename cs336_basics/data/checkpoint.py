@@ -29,6 +29,14 @@ def save_checkpoint(
     torch.save(obj, out)
 
 
+def _strip_compile_prefix(state_dict: dict) -> dict:
+    """Remove '_orig_mod.' prefix from state_dict keys (from torch.compile)."""
+    prefix = "_orig_mod."
+    if not any(k.startswith(prefix) for k in state_dict):
+        return state_dict
+    return {k.removeprefix(prefix): v for k, v in state_dict.items()}
+
+
 def load_checkpoint(
     src: str | os.PathLike | BinaryIO | IO[bytes],
     model: torch.nn.Module,
@@ -46,6 +54,8 @@ def load_checkpoint(
         The iteration count stored in the checkpoint.
     """
     obj = torch.load(src, weights_only=False)
-    model.load_state_dict(obj["model"])
-    optimizer.load_state_dict(obj["optimizer"])
+    model_state = _strip_compile_prefix(obj["model"])
+    model.load_state_dict(model_state)
+    optimizer_state = _strip_compile_prefix(obj["optimizer"])
+    optimizer.load_state_dict(optimizer_state)
     return obj["iteration"]

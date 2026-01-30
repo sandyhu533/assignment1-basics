@@ -1,17 +1,17 @@
 dataset: tinystories
-run_name: tinystories_small
+run_name: tinystories
 
 paths:
-  checkpoint: checkpoints/tinystories_small/checkpoint.pt
+  checkpoint: checkpoints/tinystories/checkpoint.pt
   tokenizer: data/tinystories/tokenizer/model.pkl
 
 model:
   vocab_size: 10000
-  context_length: 128
+  context_length: 256
   d_model: 512
   num_layers: 4
-  num_heads: 4
-  d_ff: null
+  num_heads: 16
+  d_ff: 1344
   rope_theta: 10000.0
 
 generation:
@@ -21,4 +21,4 @@ generation:
   top_k: null
   top_p: 0.1
 
-device: cpu
+device: mps

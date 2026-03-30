@@ -11,7 +11,7 @@ import torch
 
 from cs336_basics.model import TransformerLM, AdamW
 from cs336_basics.data import load_checkpoint
-from cs336_basics.generation import generate
+from cs336_basics.generation import generate, generate_with_kv_cache
 
 
 def main():
@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--num_heads", type=int, default=4)
     parser.add_argument("--d_ff", type=int, default=None)
     parser.add_argument("--rope_theta", type=float, default=10000.0)
+    parser.add_argument("--use_kv_cache", action="store_true", help="Use KV cache for generation")
 
     args = parser.parse_args()
     d_ff = args.d_ff or (4 * args.d_model // 3)
@@ -51,7 +52,7 @@ def main():
 
     from cs336_basics.tokenizer import BPETokenizer
 
-    tokenizer = BPETokenizer(vocab, merges)
+    tokenizer = BPETokenizer(vocab, merges, ['<|endoftext|>'])
     prompt_ids = tokenizer.encode(args.prompt)
 
     model = TransformerLM(
@@ -75,7 +76,8 @@ def main():
         prompt_tensor = prompt_tensor[:, -args.context_length:]
     
     eos_token_id = 256
-    output_ids = generate(
+    gen_fn = generate_with_kv_cache if args.use_kv_cache else generate
+    output_ids = gen_fn(
         model,
         prompt_tensor,
         max_new_tokens=args.max_tokens,

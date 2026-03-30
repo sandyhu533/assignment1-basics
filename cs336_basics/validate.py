@@ -1,5 +1,5 @@
 """
-Training utilities and CLI.
+Validate utilities and CLI.
 
 Re-exports get_batch, save_checkpoint, load_checkpoint from cs336_basics.data
 for backward compatibility with tests/adapters.py.
@@ -109,15 +109,8 @@ def main():
         default=500,
         help="Save checkpoint and loss log/plot every N steps (default: 500).",
     )
-    parser.add_argument(
-        "--valid_mode",
-        type=int,
-        default=0,
-        help="Value model loss with valid dataset.",
-    )
 
     args = parser.parse_args()
-    valid_mode = args.valid_mode
     d_ff = args.d_ff or (4 * args.d_model // 3)
     cosine_iters = args.cosine_iters if args.cosine_iters is not None else args.train_steps
 
@@ -255,12 +248,6 @@ def main():
             "step=%d loss=%.4f step_sec=%.3f total_sec=%.1f",
             step, loss_val, elapsed, total_elapsed,
         )
-        if not args.overfit_test:
-            inputs, labels = get_batch(
-                data, args.batch_size, args.context_length, args.device
-            )
-        if valid_mode == 1:
-            continue # Skip backwad and optimize for validation mode
         model.zero_grad()
         loss.backward()
         if not args.overfit_test:
@@ -270,16 +257,18 @@ def main():
             save_checkpoint(model, optimizer, step, args.checkpoint_dir)
             logger.info("Checkpoint saved at step %d", step)
             save_log_and_plot()
-        
+        if not args.overfit_test:
+            inputs, labels = get_batch(
+                data, args.batch_size, args.context_length, args.device
+            )
 
     run_end_time = time.perf_counter()
     run_end_iso = datetime.now().isoformat(timespec="seconds")
     total_seconds = round(run_end_time - run_start_time, 2)
     logger.info("Run finished at %s, total time %.1f s", run_end_iso, total_seconds)
 
-    if valid_mode == 0: # Skip save checkpoint for validation mode
-        save_checkpoint(model, optimizer, step, args.checkpoint_dir)
-        logger.info("Checkpoint saved at step %d", step)
+    save_checkpoint(model, optimizer, step, args.checkpoint_dir)
+    logger.info("Checkpoint saved at step %d", step)
     save_log_and_plot()
 
 

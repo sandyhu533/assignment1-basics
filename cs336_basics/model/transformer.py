@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 
+from cs336_basics.data import batch
 from cs336_basics.model.layers import (
     CausalMultiHeadSelfAttention,
     Linear,
@@ -36,14 +37,23 @@ class TransformerBlock(nn.Module):
         )
         self.ff = Swiglu(d_model=d_model, d_ff=d_ff, device=device, dtype=dtype)
 
-    def forward(self, x):
+    def forward(self, x, token_positions=None, past_kv=None, use_cache=False):
         norm1 = self.norm(x)
-        seq_len = x.shape[-2]
-        att = self.mha(norm1, torch.arange(0, seq_len, device=x.device))
+        if token_positions is None:
+            seq_len = x.shape[-2]
+            batch_size = x.shape[0]
+            token_positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(batch_size, -1)
+        if use_cache:
+            att, new_kv = self.mha(norm1, token_positions, past_kv=past_kv, use_cache=True)
+        else:
+            att = self.mha(norm1, token_positions)
+            new_kv = None
         x = x + att
         norm2 = self.norm2(x)
         ff = self.ff(norm2)
         x = x + ff
+        if use_cache:
+            return x, new_kv
         return x
 
 
@@ -79,10 +89,18 @@ class TransformerLM(nn.Module):
         self.norm = RMSNorm(d_model=d_model, device=device, dtype=dtype)
         self.liner = Linear(d_model, vocab_size, device=device, dtype=dtype)
 
-    def forward(self, x):
+    def forward(self, x, token_positions=None, past_kv_list=None, use_cache=False):
         x = self.embeddings(x)
-        for block in self.blocks:
-            x = block(x)
+        new_kv_list = [] if use_cache else None
+        for i, block in enumerate(self.blocks):
+            layer_past_kv = past_kv_list[i] if past_kv_list is not None else None
+            if use_cache:
+                x, new_kv = block(x, token_positions=token_positions, past_kv=layer_past_kv, use_cache=True)
+                new_kv_list.append(new_kv)
+            else:
+                x = block(x, token_positions=token_positions)
         x = self.norm(x)
         x = self.liner(x)
+        if use_cache:
+            return x, new_kv_list
         return x

@@ -158,60 +158,64 @@ def get_chunks(input_path, special_tokens=["<|endoftext|>"]):
             chunks = [chunk] 
     return chunks
 
-def test():
-    tiny_stories_bpe = "data/_model/TinyStoriesV2-GPT4-train.txt"
-    # dataset = "tests/_model/tinystories_sample_5M.txt"
+def test2():
+    tiny_stories_bpe = "data/tinystories/tokenizer/model.pkl"    
+    ts_tokenizer = BPETokenizer.from_files(tiny_stories_bpe, special_tokens=["<|endoftext|>"])
+    tiny_stories_valid = "data/tinystories/raw/valid.txt"
+    tiny_stories_sample = random.sample(get_chunks(tiny_stories_valid), 2)
+    tsts = sum(ts_tokenizer.get_compression_ratio(chunk) for chunk in tiny_stories_sample) / len(tiny_stories_sample)
+    print(f'compression rate of tiny_stories_sample with ts_tokenizer={tsts}')
     
-    ts_tokenizer = BPETokenizer.from_files(tiny_stories_bpe+".result.pkl", special_tokens=["<|endoftext|>"])
+def test():
+    tiny_stories_bpe = "data/tinystories/tokenizer/model.pkl"    
+    ts_tokenizer = BPETokenizer.from_files(tiny_stories_bpe, special_tokens=["<|endoftext|>"])
     str_list = [b.decode('utf-8') for b in ts_tokenizer.get_longest_tokens(10)]
     print(str_list)
-    strlist = ["1", " accomplishment", "the cat ate", "🙃"]
+    strlist = ["1", " accomplishment", "the cat ate", "🙃", '<|endoftext|>', 'a\n<|endoftext|>b']
     for st in strlist:
         print(f'original: {st} encode: {ts_tokenizer.encode(st)} decode: {ts_tokenizer.decode(ts_tokenizer.encode(st))}')
     
-    owt_bpe = "data/_model/owt_train.txt"
-    owt_tokenizer = BPETokenizer.from_files(owt_bpe+".result.pkl", special_tokens=["<|endoftext|>"])
+    owt_bpe = "data/owt/tokenizer/model.pkl"
+    owt_tokenizer = BPETokenizer.from_files(owt_bpe, special_tokens=["<|endoftext|>"])
     str_list = [b.decode('utf-8') for b in owt_tokenizer.get_longest_tokens(10)]
     print(str_list)
-    strlist = ["1", " accomplishment", "the cat ate", "🙃"]
     for st in strlist:
         print(f'original: {st} encode: {owt_tokenizer.encode(st)} decode: {owt_tokenizer.decode(owt_tokenizer.encode(st))}')
     
     diff(ts_tokenizer, owt_tokenizer)
     
-    tiny_stories_valid = "data/TinyStoriesV2-GPT4-valid.txt"
-    owt_valid = "data/owt_valid.txt"
+    tiny_stories_valid = "data/tinystories/raw/valid.txt"
+    # owt_valid = "data/owt/raw/valid.txt"
     
-    tiny_stories_sample = random.sample(get_chunks(tiny_stories_valid), 10)
-    owt_sample = random.sample(get_chunks(owt_valid), 10)
+    tiny_stories_sample = random.sample(get_chunks(tiny_stories_valid), 1)
+    # owt_sample = random.sample(get_chunks(owt_valid), 10)
     
     tsts = sum(ts_tokenizer.get_compression_ratio(chunk) for chunk in tiny_stories_sample) / len(tiny_stories_sample)
     print(f'compression rate of tiny_stories_sample with ts_tokenizer={tsts}')
     
-    tsowt = sum(owt_tokenizer.get_compression_ratio(chunk) for chunk in tiny_stories_sample) / len(tiny_stories_sample)
-    print(f'compression rate of tiny_stories_sample with owt_tokenizer={tsowt}')
+    # tsowt = sum(owt_tokenizer.get_compression_ratio(chunk) for chunk in tiny_stories_sample) / len(tiny_stories_sample)
+    # print(f'compression rate of tiny_stories_sample with owt_tokenizer={tsowt}')
     
-    owtts = sum(ts_tokenizer.get_compression_ratio(chunk) for chunk in owt_sample) / len(owt_sample)
-    print(f'compression rate of owt_sample with ts_tokenizer={owtts}')
+    # owtts = sum(ts_tokenizer.get_compression_ratio(chunk) for chunk in owt_sample) / len(owt_sample)
+    # print(f'compression rate of owt_sample with ts_tokenizer={owtts}')
     
-    owtowt = sum(owt_tokenizer.get_compression_ratio(chunk) for chunk in owt_sample) / len(owt_sample)
-    print(f'compression rate of owt_sample with owt_tokenizer={owtowt}')
+    # owtowt = sum(owt_tokenizer.get_compression_ratio(chunk) for chunk in owt_sample) / len(owt_sample)
+    # print(f'compression rate of owt_sample with owt_tokenizer={owtowt}')
+    # start_time = time.perf_counter()
+    # text = "<|endoftext|>".join(owt_sample)
+    # nbytes = len(text)
+    # owt_tokenizer.encode(text)
+    # end_time = time.perf_counter()
+    # execution_time = end_time-start_time
+    # print(f'estimated bytes/s of owt_tokenizer is {nbytes/execution_time}')
     
-    start_time = time.perf_counter()
-    text = "<|endoftext|>".join(owt_sample)
-    nbytes = len(text)
-    owt_tokenizer.encode(text)
-    end_time = time.perf_counter()
-    execution_time = end_time-start_time
-    print(f'estimated bytes/s of owt_tokenizer is {nbytes/execution_time}')
-    
-    start_time = time.perf_counter()
-    text = "<|endoftext|>".join(tiny_stories_sample)
-    nbytes = len(text)
-    ts_tokenizer.encode(text)
-    end_time = time.perf_counter()
-    execution_time = end_time-start_time
-    print(f'estimated bytes/s of ts_tokenizer is {nbytes/execution_time}')
+    # start_time = time.perf_counter()
+    # text = "<|endoftext|>".join(tiny_stories_sample)
+    # nbytes = len(text)
+    # ts_tokenizer.encode(text)
+    # end_time = time.perf_counter()
+    # execution_time = end_time-start_time
+    # print(f'estimated bytes/s of ts_tokenizer is {nbytes/execution_time}')
 
 def serialize_dataset(tokenizer, input_file, output_file):
     token_ids = []
@@ -243,27 +247,22 @@ def main():
     
     # 1. 加载 Tokenizer
     print(f"Loading tokenizer from {args.tokenizer_model}...")
-    tokenizer = BPETokenizer.from_files(args.tokenizer_model)
+    tokenizer = BPETokenizer.from_files(args.tokenizer_model, special_tokens=['<|endoftext|>'])
 
     # 2. 准备输出目录
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # 3. 逐行读取并编码
+    # 3. 读取整个文件并编码（避免逐行读取时把跨行的 <|endoftext|> 拆成两行）
     token_ids = []
     print(f"Encoding {args.input_file}...")
     
-    num_lines = sum(1 for _ in open(args.input_file, 'r', encoding='utf-8'))
-    
     try:
         with open(args.input_file, 'r', encoding='utf-8') as f:
-            # 使用 tqdm 显示处理进度
-            for line in tqdm(f, total=num_lines, desc="Processing"):
-                if line.strip():
-                    # 调用你实现的 encode 方法
-                    ids = tokenizer.encode(line)
-                    token_ids.extend(ids)
+            content = f.read()
+        ids = tokenizer.encode(content)
+        token_ids.extend(ids)
     except FileNotFoundError:
         print(f"Error: Input file {args.input_file} not found.")
         return
@@ -279,3 +278,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # test2()

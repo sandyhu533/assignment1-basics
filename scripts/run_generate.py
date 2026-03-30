@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--prompt", type=str, help="Override prompt")
     parser.add_argument("--max_tokens", type=int, help="Override max_tokens")
     parser.add_argument("--temperature", type=float, help="Override temperature")
+    parser.add_argument("--use_kv_cache", action="store_true", help="Use KV cache for generation")
     args = parser.parse_args()
 
     root = Path(__file__).parent.parent
@@ -62,6 +63,8 @@ def main():
         gen_args.extend(["--d_ff", str(model_config["d_ff"])])
     if gen_config.get("top_k") is not None:
         gen_args.extend(["--top_k", str(gen_config["top_k"])])
+    if args.use_kv_cache or gen_config.get("use_kv_cache", False):
+        gen_args.append("--use_kv_cache")
 
     sys.argv = gen_args
     from cs336_basics.gen import main as gen_main

@@ -2,7 +2,7 @@ dataset: tinystories
 run_name: tinystories
 
 paths:
-  checkpoint: checkpoints/tinystories/checkpoint.pt
+  checkpoint: checkpoints/tinystories/checkpointlr=10e2.pt
   tokenizer: data/tinystories/tokenizer/model.pkl
 
 model:
@@ -16,8 +16,8 @@ model:
 
 generation:
   prompt: "Once upon a time"
-  max_tokens: 100
-  temperature: 0.8
+  max_tokens: 256
+  temperature: 0
   top_k: null
   top_p: 0.1
 

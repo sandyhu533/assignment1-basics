@@ -21,6 +21,8 @@ def main():
     parser.add_argument("--config", dest="config_path", type=str, help="Path to config YAML")
     parser.add_argument("--load_checkpoint", type=int, default=None, choices=[0, 1], help="Override load_checkpoint")
     parser.add_argument("--note", type=str, default=None, help="Run note for loss plot (e.g. baseline, lr=1e-4)")
+    parser.add_argument("--overfit_test", action="store_true", help="Overfit on one small batch; loss should go to ~0")
+    parser.add_argument("--valid_mode", default=0, help="Valid model loss")
     args = parser.parse_args()
 
     root = Path(__file__).parent.parent
@@ -80,6 +82,7 @@ def main():
         "--b2", str(config.get("b2", 0.99)),
         "--weight_decay", str(config.get("weight_decay", 0.01)),
         "--eps", str(config.get("eps", 1e-8)),
+        "--save_every", str(config.get("save_every", 500))
     ]
     if vocab_size is not None:
         train_args.extend(["--vocab_size", str(vocab_size)])
@@ -90,6 +93,8 @@ def main():
         train_args.extend(["--d_ff", str(config["d_ff"])])
     if config.get("cosine_iters") is not None:
         train_args.extend(["--cosine_iters", str(config["cosine_iters"])])
+    if args.overfit_test:
+        train_args.append("--overfit_test")
 
     sys.argv = train_args
     from cs336_basics.train import main as train_main

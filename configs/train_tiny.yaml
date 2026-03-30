@@ -2,16 +2,16 @@ dataset: tinystories
 run_name: tinystories
 
 # run_note: 本次实验备注，用于 loss 图标题/图例，便于多次实验对比
-run_note: ""
+run_note: "lr=10e2"
 
 # vocab_size from tokenizer (avoids scanning full dataset for np.max)
 vocab_size: 10000
 
 paths:
   input_file: data/tinystories/tokenized/train.npy
-  checkpoint_dir: checkpoints/tinystories/checkpoint.pt
+  checkpoint_dir: checkpoints/tinystories/checkpointlr=10e2.pt
 
-load_checkpoint: 0
+load_checkpoint: 1
 batch_size: 32
 context_length: 256
 d_model: 512
@@ -21,15 +21,16 @@ d_ff: 1344
 rope_theta: 10000.0
 
 train_steps: 5000
-lr: 0.001
+save_every: 500  # checkpoint + loss log/plot every N steps
+lr: 10e-2
 # Cosine LR schedule with warmup
-max_lr: 0.001
-min_lr: 0.00001
-warmup_iters: 100
+max_lr: 10e-2
+min_lr: 10e-3
+warmup_iters: 500
 # cosine_iters: 5000   # default: same as train_steps
 b1: 0.9
-b2: 0.99
-weight_decay: 0.01
+b2: 0.95
+weight_decay: 0.1
 eps: 1.0e-8
 
 device: mps

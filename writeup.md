@@ -445,3 +445,168 @@ total/a100/60/60/24
 6585.073958099146 days
 
 ```
+
+---
+
+## Problem (kv_cache_impl): Implement KV Cache (3 points)
+
+Autoregressive generation in the current codebase recomputes all Key and Value projections for the entire prefix at every step. This is highly wasteful — KV Cache eliminates this redundancy by caching the K and V tensors from previous positions.
+
+**Background reading:** See `docs/kv_cache_tutorial.md` for a detailed explanation of the KV Cache concept, complexity analysis, and implementation guide.
+
+**Tasks:**
+
+1. Modify `CausalMultiHeadSelfAttention.forward()` in `cs336_basics/model/layers.py` to accept an optional `past_kv` cache and return an updated cache when `use_cache=True`.
+2. Modify `TransformerBlock.forward()` and `TransformerLM.forward()` in `cs336_basics/model/transformer.py` to thread the KV cache through all layers. The model must accept external `token_positions` (for correct RoPE during decode) and `past_kv_list` (one cache entry per layer).
+3. Implement `generate_with_kv_cache()` in `cs336_basics/generation.py` with two-phase decoding:
+   - **Prefill**: run the full prompt through the model, collect KV caches.
+   - **Decode**: for each new token, pass only the single new token plus cached KV, and update the cache.
+4. Ensure backward compatibility: existing training code (which does not use cache) must continue to work without modification.
+
+**Resource requirements:** No GPU needed.
+
+**Deliverable:** Pass all tests in `tests/test_kv_cache.py` (`pytest tests/test_kv_cache.py -v`).
+
+---
+
+## Problem (kv_cache_correctness): Verify KV Cache Correctness (1 point)
+
+Verify that `generate_with_kv_cache()` produces **identical output** as `generate()` when using `temperature=0` (deterministic greedy decoding) on a trained checkpoint.
+
+**Tasks:**
+
+1. Load a trained model checkpoint (e.g., TinyStories).
+2. Run both `generate()` and `generate_with_kv_cache()` with the same prompt and `temperature=0`.
+3. Confirm the outputs are identical token-by-token.
+
+**Deliverable:** A one-sentence confirmation that the outputs match, and the generated text from both methods.
+
+the result match:
+Once upon a time, there was a little girl named Lily. She loved to play with her toys. One day, she saw a big box in the park. She wanted to play with her toys.
+Lily went to her mom and dad, "Lily, I will help you find my toy." Sue was sad, but she said, "I want to play with you. I will help you." Sue was happy. She thought it was a toy.
+Sue's mom saw her mom and said, "Hi, I will help you." Sue and her mom went to the park. She saw the toy car. Sue was very happy. She was happy. She was happy. She was happy.
+Sue's mom saw her mom and dad. She said, "Lily, I will help you." Sue and her mom went to the park. She took the toy car and put them in the box. She was happy.
+Lily and her mom went to the park, she saw a big tree. She was happy. She was happy. She was happy. She was happy. She was happy. She was so happy and thanked her mom.
+
+---
+
+## Problem (kv_cache_speedup): Measure KV Cache Speedup (2 points)
+
+Run the provided benchmark script to measure the wall-clock speedup of KV-cached generation over naive generation.
+
+**Tasks:**
+
+1. Run the benchmark: `python -m scripts.benchmark_kv_cache --gen-lengths 64 128 256 512`
+2. Record wall-clock times and speedup ratios for each generation length.
+3. (Optional) Generate a plot: `python -m scripts.benchmark_kv_cache --gen-lengths 64 128 256 512 --plot kv_cache_speedup.png`
+
+**Deliverable:** A table of wall-clock time and speedup ratio for each generation length, plus a 2-3 sentence analysis of how the speedup scales with sequence length and why.
+
+**Answer:**
+
+Gen Len |  Naive (s) | KV Cache (s) |  Speedup |  Naive tok/s |  Cache tok/s
+-----------------------------------------------------------------------------
+      64 |     0.1957 |       0.1038 |    1.89x |        327.0 |        616.8
+     128 |     0.6201 |       0.2068 |    3.00x |        206.4 |        619.0
+     256 |     1.8021 |       0.4146 |    4.35x |        142.1 |        617.5
+     512 |     8.2085 |       1.9155 |    4.29x |         62.4 |        267.3
+    
+---
+
+## Problem (kv_cache_analysis): KV Cache Memory-Compute Tradeoff Analysis (2 points, written)
+
+KV Cache trades memory for compute. Let's analyze this tradeoff quantitatively.
+
+### (a) Derive the memory cost of the KV cache for a GPT-2 XL model generating a total sequence of 1024 tokens (prompt + generated). Express your answer in terms of the model hyperparameters (`num_layers`, `d_model`, `batch_size`, `seq_len`) and `sizeof(dtype)`.
+
+```
+GPT-2 XL:
+vocab_size = 50257
+context_length = 1024
+num_layers = 48
+d_model = 1600
+num_heads = 25
+```
+
+**Deliverable:** An algebraic expression for the KV cache memory in bytes, and the numerical result for GPT-2 XL with `batch_size=1`, `seq_len=1024`, `dtype=float32`.
+
+**Answer:**
+
+Each layer caches K and V tensors, each of shape `(batch_size, num_heads, seq_len, d_k)` where `d_k = d_model / num_heads`. Since `num_heads × d_k = d_model`:
+
+```
+KV_cache_memory = 2 × num_layers × batch_size × seq_len × d_model × sizeof(dtype)
+```
+
+For GPT-2 XL with batch_size=1, seq_len=1024, dtype=float32 (4 bytes):
+
+```
+= 2 × 48 × 1 × 1024 × 1600 × 4
+= 629,145,600 bytes
+≈ 600 MB (0.586 GB)
+```
+
+### (b) Compare the KV cache memory overhead with the model parameter memory. What fraction of the model memory does the KV cache represent?
+
+**Deliverable:** A one-to-two sentence response.
+
+**Answer:**
+
+The model parameters require ~8.508 GB in float32 (from the model_analysis problem). The KV cache at seq_len=1024 requires ~0.586 GB, which is approximately **6.9%** of the model parameter memory — a modest overhead that delivers a substantial speedup.
+
+### (c) Derive how much compute (FLOPs) the KV cache saves per generation step compared to naive generation, for a sequence of length $n$. At what sequence length does the memory cost of KV cache become a concern relative to model parameters for GPT-2 XL?
+
+**Deliverable:** An algebraic expression for FLOPs saved per step, and a few sentences of analysis.
+
+**Answer:**
+
+At sequence length $n$, per layer the naive forward pass costs:
+
+```
+naive_per_layer = 8n × d_model²  (QKV + O projections)
+               + 4n² × d_model   (QKᵀ and attn × V)
+               + 6n × d_model × d_ff  (FFN W1, W2, W3)
+```
+
+With KV cache, we only process 1 new token per step:
+
+```
+cached_per_layer = 8 × d_model²         (projections for 1 token)
+                 + 4n × d_model          (Q[1] @ K[n]ᵀ and attn × V)
+                 + 6 × d_model × d_ff   (FFN for 1 token)
+```
+
+FLOPs saved per step over all layers:
+
+```
+saved = L × (n − 1) × (8 × d_model² + 4n × d_model + 6 × d_model × d_ff)
+```
+
+This is roughly an $n\times$ reduction in work per step. Instantiating for GPT-2 XL at n=1024:
+
+```
+naive_total  = L × naive_per_layer + 2 × n × d_model × vocab_size
+             = 48 × 90,596,966,400 + 164,682,137,600
+             ≈ 4,513,336,524,800 FLOPs
+
+cached_total = L × cached_per_layer + 2 × 1 × d_model × vocab_size
+             = 48 × 88,473,600 + 160,822,400
+             ≈ 4,407,555,200 FLOPs
+
+savings      = 1 − cached / naive
+             = 1 − 4,407,555,200 / 4,513,336,524,800
+             ≈ 99.90%
+```
+
+KV cache reduces per-step decode FLOPs by **~99.9%** (a ~1024× reduction, matching $n$). The prefill phase still performs a full forward pass, so the total savings over $T$ decode steps is $(T-1)/T$ of this, approaching 99.9% as $T$ grows.
+
+For the memory crossover point, the KV cache memory equals model parameter memory when:
+
+```
+2 × L × B × n × d_model = num_params
+n = num_params / (2 × L × B × d_model)
+  = 2,127,057,600 / (2 × 48 × 1 × 1600)
+  ≈ 13,843
+```
+
+At the default context_length of 1024, the KV cache is only ~7% of model memory and well worth the tradeoff. The cache only becomes memory-competitive with the model itself at sequence lengths around 14K — relevant for modern long-context models, but not for GPT-2 XL's 1024-token context window.

@@ -81,11 +81,24 @@ class RotaryPositionalEmbedding(nn.Module):
         R[:, 2 * idx, 2 * idx + 1] = -sin_v
         R[:, 2 * idx + 1, 2 * idx] = sin_v
         R[:, 2 * idx + 1, 2 * idx + 1] = cos_v
-        self.register_buffer("rotate", R)
+        self.register_buffer("rotate", R, persistent=False)
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor):
-        rorate = self.rotate[token_positions]
-        return einsum(rorate, x, "... s i j, ... s j -> ... s i")
+        # R: (max_seq_len, d_k, d_k), token_positions indexes positions
+        R = self.rotate[token_positions]  # (..., seq_len, d_k, d_k) or (seq_len, d_k, d_k)
+        if x.dim() == 3:
+            # x: (..., seq_len, d_k) e.g. (batch, seq_len, d_k) from run_rope
+            # out[..., s, :] = R[..., s, :, :] @ x[..., s, :]
+            return einsum(R, x, "... s i j, ... s j -> ... s i")
+        else:
+            # x: (batch, num_heads, seq_len, d_k) from MHA
+            # Apply same R per position: transpose to (batch, seq_len, num_heads, d_k)
+            x = x.transpose(1, 2)  # (batch, seq_len, num_heads, d_k)
+            # R may be (seq_len, d_k, d_k) or (batch, seq_len, d_k, d_k)
+            if R.dim() == 3:
+                R = R.unsqueeze(0)  # (1, seq_len, d_k, d_k) for broadcasting with batch
+            out = einsum(R, x, "... s i j, ... s h j -> ... s h i")
+            return out.transpose(1, 2)  # (batch, num_heads, seq_len, d_k)
 
 
 def softmax(x, dim):
@@ -113,10 +126,27 @@ class CausalMultiHeadSelfAttention(nn.Module):
         self.num_heads = num_heads
         self.rope = None
         shape = (d_model, d_model)
-        self.Q = nn.Parameter(torch.rand(shape, **factory_kwargs))
-        self.K = nn.Parameter(torch.rand(shape, **factory_kwargs))
-        self.V = nn.Parameter(torch.rand(shape, **factory_kwargs))
-        self.O = nn.Parameter(torch.rand(shape, **factory_kwargs))
+        
+        # 1. 创建空 Tensor
+        q_tensor = torch.empty(shape, **factory_kwargs)
+        k_tensor = torch.empty(shape, **factory_kwargs)
+        v_tensor = torch.empty(shape, **factory_kwargs)
+        o_tensor = torch.empty(shape, **factory_kwargs)
+        
+        # 2. 计算标准差 (参考 Xavier Init 或 Assignment 要求)
+        # 通常 Attention 层的 std 使用 1/sqrt(d_model)
+        std = 1.0 / (d_model ** 0.5)
+        
+        # 3. 使用 trunc_normal_ 初始化 (保持均值为 0)
+        nn.init.trunc_normal_(q_tensor, mean=0.0, std=std, a=-3 * std, b=3 * std)
+        nn.init.trunc_normal_(k_tensor, mean=0.0, std=std, a=-3 * std, b=3 * std)
+        nn.init.trunc_normal_(v_tensor, mean=0.0, std=std, a=-3 * std, b=3 * std)
+        nn.init.trunc_normal_(o_tensor, mean=0.0, std=std, a=-3 * std, b=3 * std)
+        
+        self.Q = nn.Parameter(q_tensor)
+        self.K = nn.Parameter(k_tensor)
+        self.V = nn.Parameter(v_tensor)
+        self.O = nn.Parameter(o_tensor)
 
     @classmethod
     def with_rope(
@@ -134,7 +164,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
         )
         return instance
 
-    def forward(self, x, token_positions=None):
+    def forward(self, x, token_positions=None, past_kv=None, use_cache=False):
         num_heads = self.num_heads
         p_proj = einsum(self.Q, x, "d_model d_in, ... seq_len d_in -> ... seq_len d_model")
         k_proj = einsum(self.K, x, "d_model d_in, ... seq_len d_in -> ... seq_len d_model")
@@ -148,13 +178,23 @@ class CausalMultiHeadSelfAttention(nn.Module):
         v = rearrange(
             v_proj, "... seq_len (num_heads d_k) -> ... num_heads seq_len d_k", num_heads=num_heads
         )
-        seq_len = x.shape[-2]
         if self.rope is not None:
             q = self.rope(q, token_positions)
             k = self.rope(k, token_positions)
-        mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1) == 0
-        mask = mask.to(q.device)
+
+        if past_kv is not None:
+            past_k, past_v = past_kv
+            k = torch.cat([past_k, k], dim=-2)
+            v = torch.cat([past_v, v], dim=-2)
+        new_kv = (k, v) if use_cache else None
+
+        q_len = q.shape[-2]
+        kv_len = k.shape[-2]
+        past_len = kv_len - q_len
+        mask = torch.triu(torch.ones(q_len, kv_len, device=q.device), diagonal=past_len + 1) == 0
         res = scaled_dot_product_attention(q, k, v, mask)
         s = rearrange(res, "... h s k -> ... s (h k)")
         s = einsum(self.O, s, "d_v d_model, ... seq d_model -> ... seq d_v")
+        if use_cache:
+            return s, new_kv
         return s
